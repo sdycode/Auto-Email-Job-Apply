@@ -40,16 +40,28 @@ class SentRecord {
   final String subject;
   final DateTime sentAt;
 
-  const SentRecord(
-      {required this.to, required this.subject, required this.sentAt});
+  /// True if sent directly via Gmail; false if handed off to the mail app.
+  final bool direct;
 
-  Map<String, dynamic> toJson() =>
-      {'to': to, 'subject': subject, 'sentAt': sentAt.toIso8601String()};
+  const SentRecord({
+    required this.to,
+    required this.subject,
+    required this.sentAt,
+    this.direct = true,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'to': to,
+        'subject': subject,
+        'sentAt': sentAt.toIso8601String(),
+        'direct': direct,
+      };
 
   factory SentRecord.fromJson(Map<String, dynamic> j) => SentRecord(
         to: j['to'],
         subject: j['subject'],
         sentAt: DateTime.parse(j['sentAt']),
+        direct: j['direct'] ?? false,
       );
 }
 

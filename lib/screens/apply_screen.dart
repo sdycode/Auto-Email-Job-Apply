@@ -58,18 +58,27 @@ class _ApplyScreenState extends State<ApplyScreen> {
 
     setState(() => _sending = true);
     try {
-      final mode = await EmailService.send(
+      final result = await EmailService.send(
         store: store,
         recipients: _emails,
         template: template,
         resume: store.defaultResume,
       );
+      final direct = result.mode == SendMode.direct;
       await store.addHistory(SentRecord(
-          to: _emails.join(', '), subject: template.subject, sentAt: DateTime.now()));
+          to: _emails.join(', '),
+          subject: template.subject,
+          sentAt: DateTime.now(),
+          direct: direct));
       _controller.clear();
-      _snack(mode == SendMode.direct
-          ? 'Application sent!'
-          : 'Opened in mail app — tap send there');
+      switch (result.mode) {
+        case SendMode.direct:
+          _snack('Application sent!');
+        case SendMode.mailApp:
+          _snack('Opened in mail app — tap send there');
+        case SendMode.mailAppFallback:
+          _snack('Direct send failed: ${result.error}\nOpened mail app as backup.');
+      }
     } catch (e) {
       _snack('Failed to send: $e');
     } finally {
@@ -134,7 +143,7 @@ class _ApplyScreenState extends State<ApplyScreen> {
               const SizedBox(height: 8),
               Text(
                 store.smtpConfigured
-                    ? 'Sends directly from ${store.senderEmail}'
+                    ? 'Sends directly from ${store.senderEmail} (mail app as backup)'
                     : 'Gmail not set up — will open your mail app. Set up in Settings for true 1-tap sending.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall,
@@ -164,9 +173,11 @@ class _ApplyScreenState extends State<ApplyScreen> {
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+                    leading: h.direct
+                        ? const Icon(Icons.check_circle_outline, color: Colors.green)
+                        : const Icon(Icons.open_in_new, color: Colors.orange),
                     title: Text(h.to),
-                    subtitle: Text('${h.subject} • ${_fmt(h.sentAt)}'),
+                    subtitle: Text('${h.direct ? 'Sent' : 'Opened in mail app'} • ${_fmt(h.sentAt)}'),
                   ),
               ],
             ],

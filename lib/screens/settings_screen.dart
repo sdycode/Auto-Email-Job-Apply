@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:mailer/smtp_server.dart';
+
 import '../main.dart';
+import '../services/email_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final _name = TextEditingController(text: store.senderName);
   late final _password = TextEditingController(text: store.appPassword);
   bool _obscure = true;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -25,11 +29,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
-    await store.saveSmtp(_email.text, _name.text, _password.text);
+    final email = _email.text.trim();
+    final password = _password.text.replaceAll(' ', '');
+    if (email.isEmpty && password.isEmpty) {
+      await store.saveSmtp('', _name.text, '');
+      _snack('Saved — will use mail app');
+      return;
+    }
+    if (email.isEmpty || password.isEmpty) {
+      _snack('Enter both Gmail address and App Password');
+      return;
+    }
+    await _run(() async {
+      await EmailService.verifyGmail(email, password);
+      await store.saveSmtp(email, _name.text, password);
+      _snack('Gmail verified — 1-tap sending enabled');
+    });
+  }
+
+  Future<void> _sendTest() async {
+    await _run(() async {
+      await EmailService.sendViaSmtp(
+        server: gmail(store.senderEmail, store.appPassword),
+        fromEmail: store.senderEmail,
+        fromName: store.senderName,
+        recipients: [store.senderEmail],
+        subject: 'Quick Apply test email',
+        body: 'Direct sending from Quick Apply works.',
+        resume: store.defaultResume,
+      );
+      _snack('Test email sent to ${store.senderEmail}');
+    });
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+    } catch (e) {
+      _snack('Failed: ${EmailService.describeError(e)}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(store.smtpConfigured ? 'Saved — 1-tap sending enabled' : 'Saved — will use mail app'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -88,7 +134,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton(onPressed: _save, child: const Text('Save')),
+          FilledButton.icon(
+            onPressed: _busy ? null : _save,
+            icon: _busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.verified_user_outlined),
+            label: const Text('Verify & Save'),
+          ),
+          ListenableBuilder(
+            listenable: store,
+            builder: (context, _) => store.smtpConfigured
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : _sendTest,
+                      icon: const Icon(Icons.outgoing_mail),
+                      label: const Text('Send test email to myself'),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
