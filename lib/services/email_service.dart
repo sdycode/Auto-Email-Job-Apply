@@ -110,17 +110,30 @@ class EmailService {
     ));
   }
 
-  /// Turns SMTP/network exceptions into something a user can act on.
+  /// Turns SMTP/network exceptions into something a user can act on, based on
+  /// Gmail's actual reply (e.g. 534 5.7.9 vs 535 5.7.8).
   static String describeError(Object e) {
+    final raw = e.toString();
     if (e is SmtpClientAuthenticationException) {
-      return 'Gmail rejected the login. Check your email and App Password.';
+      if (raw.contains('5.7.9') || raw.contains('Application-specific password')) {
+        return 'Gmail needs an App Password here, not your normal Gmail password. '
+            'Create one at myaccount.google.com/apppasswords.';
+      }
+      if (raw.contains('5.7.8') || raw.contains('BadCredentials')) {
+        return 'Gmail rejected the email/App Password. Make sure you pasted the '
+            '16-letter App Password (not your normal password) for this same Gmail account.';
+      }
+      if (raw.contains('5.7.0') || raw.contains('WebLoginRequired')) {
+        return 'Google blocked this sign-in. Open Gmail in a browser, confirm it was you, then try again.';
+      }
+      return 'Gmail rejected the login.';
     }
-    if (e is SocketException || e is TimeoutException) {
-      return 'No internet connection or Gmail is unreachable.';
+    if (e is SocketException || e is TimeoutException || e is HandshakeException) {
+      return 'Could not reach Gmail — check the internet connection.';
     }
     if (e is SmtpMessageValidationException) {
       return 'Invalid email address.';
     }
-    return e.toString();
+    return raw;
   }
 }

@@ -67,11 +67,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await action();
     } catch (e) {
-      _snack('Failed: ${EmailService.describeError(e)}');
+      if (mounted) await _showError(e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  Future<void> _showError(Object e) => showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Gmail verification failed'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(EmailService.describeError(e)),
+                const SizedBox(height: 16),
+                Text('Details', style: Theme.of(c).textTheme.labelLarge),
+                SelectableText('$e', style: Theme.of(c).textTheme.bodySmall),
+              ],
+            ),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+        ),
+      );
 
   void _snack(String msg) {
     if (!mounted) return;
