@@ -35,6 +35,7 @@ class ResumesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Resumes')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'resumesFab',
         onPressed: () => _add(context),
         icon: const Icon(Icons.upload_file),
         label: const Text('Add resume'),

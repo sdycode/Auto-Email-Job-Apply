@@ -4,6 +4,7 @@ import 'package:mailer/smtp_server.dart';
 
 import '../main.dart';
 import '../services/email_service.dart';
+import '../services/firebase_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -43,7 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _run(() async {
       await EmailService.verifyGmail(email, password);
       await store.saveSmtp(email, _name.text, password);
-      _snack('Gmail verified — 1-tap sending enabled');
+      _snack('Gmail verified — 1-tap sending & Firebase sync enabled');
     });
   }
 
@@ -96,6 +97,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  static String _fmtTime(DateTime d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.hour)}:${two(d.minute)}:${two(d.second)}';
   }
 
   @override
@@ -174,8 +180,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   )
                 : const SizedBox.shrink(),
           ),
+          const SizedBox(height: 24),
+          Text('Firebase Realtime Database', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          ListenableBuilder(
+            listenable: store,
+            builder: (context, _) {
+              final configured = store.senderEmail.isNotEmpty;
+              final emailKey = configured ? FirebaseService.emailToKey(store.senderEmail) : null;
+              return Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            configured ? Icons.cloud_done : Icons.cloud_off,
+                            color: configured ? Colors.green : theme.colorScheme.outline,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              configured ? 'Connected & Synced' : 'Not Connected',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          if (store.isSyncing)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        configured
+                            ? 'Primary key path: /$emailKey/\nStores: Templates, Cover letters, Mail sent history with status'
+                            : 'Verify your Gmail address above to activate Firebase Realtime Database cloud sync.',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      if (configured) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            if (store.lastSyncedAt != null)
+                              Text(
+                                'Last synced: ${_fmtTime(store.lastSyncedAt!)}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            const Spacer(),
+                            FilledButton.tonalIcon(
+                              onPressed: store.isSyncing
+                                  ? null
+                                  : () async {
+                                      await store.syncWithFirebase();
+                                      _snack('Synced with Firebase!');
+                                    },
+                              icon: const Icon(Icons.sync, size: 16),
+                              label: const Text('Sync Now'),
+                              style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 }
+

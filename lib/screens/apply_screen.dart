@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../main.dart';
 import '../models.dart';
+import '../services/app_store.dart';
 import '../services/email_service.dart';
+import '../widgets/verification_banner.dart';
 
 class ApplyScreen extends StatefulWidget {
   const ApplyScreen({super.key});
@@ -36,6 +38,16 @@ class _ApplyScreenState extends State<ApplyScreen> {
   }
 
   Future<void> _send() async {
+    if (!store.isEmailVerified) {
+      showVerificationRequiredDialog(
+        context,
+        title: 'Email Verification Required',
+        message: 'You cannot send applications until your email is verified.\n\n'
+            'Please go to Settings and enter your Gmail address and App Password to verify your account.',
+      );
+      return;
+    }
+
     final template = store.defaultTemplate;
     if (template == null) {
       _snack('Add an application template first');
@@ -65,11 +77,20 @@ class _ApplyScreenState extends State<ApplyScreen> {
         resume: store.defaultResume,
       );
       final direct = result.mode == SendMode.direct;
+      final status = switch (result.mode) {
+        SendMode.direct => 'Sent directly via Gmail',
+        SendMode.mailApp => 'Opened in mail app',
+        SendMode.mailAppFallback =>
+          'Fallback to mail app: ${result.error ?? ""}',
+      };
       await store.addHistory(SentRecord(
-          to: _emails.join(', '),
-          subject: template.subject,
-          sentAt: DateTime.now(),
-          direct: direct));
+        id: AppStore.newId(),
+        to: _emails.join(', '),
+        subject: template.subject,
+        sentAt: DateTime.now(),
+        direct: direct,
+        status: status,
+      ));
       _controller.clear();
       switch (result.mode) {
         case SendMode.direct:
@@ -104,6 +125,11 @@ class _ApplyScreenState extends State<ApplyScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (!store.isEmailVerified)
+                const VerificationRequiredBanner(
+                  message:
+                      'Verify your Gmail in Settings before sending applications. Sending and cloud saving are disabled until verified.',
+                ),
               TextField(
                 controller: _controller,
                 keyboardType: TextInputType.emailAddress,
@@ -133,7 +159,7 @@ class _ApplyScreenState extends State<ApplyScreen> {
               SizedBox(
                 height: 56,
                 child: FilledButton.icon(
-                  onPressed: _emails.isEmpty || _sending ? null : _send,
+                  onPressed: _sending ? null : _send,
                   icon: _sending
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.send),
@@ -142,11 +168,14 @@ class _ApplyScreenState extends State<ApplyScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                store.smtpConfigured
-                    ? 'Sends directly from ${store.senderEmail} (mail app as backup)'
-                    : 'Gmail not set up — will open your mail app. Set up in Settings for true 1-tap sending.',
+                store.isEmailVerified
+                    ? 'Sends directly from ${store.senderEmail} • Synced with Firebase Cloud'
+                    : 'Email not verified: Sending disabled. Go to Settings to verify your Gmail.',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: store.isEmailVerified ? null : theme.colorScheme.error,
+                  fontWeight: store.isEmailVerified ? null : FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 20),
               _SummaryTile(
@@ -177,7 +206,7 @@ class _ApplyScreenState extends State<ApplyScreen> {
                         ? const Icon(Icons.check_circle_outline, color: Colors.green)
                         : const Icon(Icons.open_in_new, color: Colors.orange),
                     title: Text(h.to),
-                    subtitle: Text('${h.direct ? 'Sent' : 'Opened in mail app'} • ${_fmt(h.sentAt)}'),
+                    subtitle: Text('${h.status} • ${_fmt(h.sentAt)}'),
                   ),
               ],
             ],

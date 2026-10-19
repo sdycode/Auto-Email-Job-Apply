@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
 import 'screens/apply_screen.dart';
+import 'screens/cover_letters_screen.dart';
 import 'screens/resumes_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/templates_screen.dart';
 import 'services/app_store.dart';
+import 'services/firebase_service.dart';
 
 final store = AppStore();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseService.init();
   await store.load();
   runApp(const QuickApplyApp());
 }
@@ -53,6 +56,7 @@ class _HomeShellState extends State<HomeShell> {
 
   static const _pages = [
     ApplyScreen(),
+    CoverLettersScreen(),
     TemplatesScreen(),
     ResumesScreen(),
     SettingsScreen(),
@@ -66,10 +70,30 @@ class _HomeShellState extends State<HomeShell> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.send_outlined), selectedIcon: Icon(Icons.send), label: 'Apply'),
-          NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description), label: 'Templates'),
-          NavigationDestination(icon: Icon(Icons.attach_file), label: 'Resumes'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
+          NavigationDestination(
+            icon: Icon(Icons.send_outlined),
+            selectedIcon: Icon(Icons.send),
+            label: 'Apply',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.article_outlined),
+            selectedIcon: Icon(Icons.article),
+            label: 'Cover Letters',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.description_outlined),
+            selectedIcon: Icon(Icons.description),
+            label: 'Templates',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.attach_file),
+            label: 'Resumes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
         ],
       ),
     );

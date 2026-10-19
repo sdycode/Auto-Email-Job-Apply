@@ -36,32 +36,90 @@ class Resume {
 }
 
 class SentRecord {
+  final String id;
   final String to;
   final String subject;
   final DateTime sentAt;
 
   /// True if sent directly via Gmail; false if handed off to the mail app.
   final bool direct;
+  final String status;
 
-  const SentRecord({
+  SentRecord({
+    String? id,
     required this.to,
     required this.subject,
     required this.sentAt,
     this.direct = true,
-  });
+    String? status,
+  })  : id = (id != null && id.isNotEmpty)
+            ? id
+            : sentAt.microsecondsSinceEpoch.toString(),
+        status = status ??
+            (direct ? 'Sent directly via Gmail' : 'Opened in mail app');
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'to': to,
         'subject': subject,
         'sentAt': sentAt.toIso8601String(),
         'direct': direct,
+        'status': status,
       };
 
   factory SentRecord.fromJson(Map<String, dynamic> j) => SentRecord(
-        to: j['to'],
-        subject: j['subject'],
-        sentAt: DateTime.parse(j['sentAt']),
+        id: j['id']?.toString(),
+        to: j['to'] ?? '',
+        subject: j['subject'] ?? '',
+        sentAt: j['sentAt'] != null
+            ? DateTime.parse(j['sentAt'])
+            : DateTime.now(),
         direct: j['direct'] ?? false,
+        status: j['status']?.toString(),
+      );
+}
+
+class CoverLetter {
+  final String id;
+  final String title;
+  final String content;
+  final DateTime updatedAt;
+
+  const CoverLetter({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.updatedAt,
+  });
+
+  CoverLetter copyWith({
+    String? id,
+    String? title,
+    String? content,
+    DateTime? updatedAt,
+  }) {
+    return CoverLetter(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'content': content,
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory CoverLetter.fromJson(Map<String, dynamic> j) => CoverLetter(
+        id: j['id'] as String,
+        title: j['title'] as String? ?? '',
+        content: j['content'] as String? ?? '',
+        updatedAt: j['updatedAt'] != null
+            ? DateTime.tryParse(j['updatedAt'] as String) ?? DateTime.now()
+            : DateTime.now(),
       );
 }
 
@@ -97,3 +155,6 @@ Shubham Yeole
 Flutter / Mobile App Developer
 8626043082
 shubhamyeole123@gmail.com''';
+
+const defaultCoverLetterTitle = 'Senior Flutter Developer';
+const defaultCoverLetterBody = defaultTemplateBody;

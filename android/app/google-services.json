@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "700225125220",
+    "project_id": "quick-sent-email",
+    "storage_bucket": "quick-sent-email.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:700225125220:android:ba4a0d376efb8dfaa79871",
+        "android_client_info": {
+          "package_name": "com.shubham.quick_apply"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzQJP-AgSyBMrU3fF5t171UlFO9IVJZsM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,11 +3,21 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models.dart';
 import '../services/app_store.dart';
+import '../widgets/verification_banner.dart';
 
 class TemplatesScreen extends StatelessWidget {
   const TemplatesScreen({super.key});
 
   void _edit(BuildContext context, [EmailTemplate? t]) {
+    if (!store.isEmailVerified) {
+      showVerificationRequiredDialog(
+        context,
+        title: 'Email Verification Required',
+        message:
+            'You must verify your Gmail in Settings before adding or editing templates so they can be saved to your database account.',
+      );
+      return;
+    }
     Navigator.push(context, MaterialPageRoute(builder: (_) => TemplateEditor(template: t)));
   }
 
@@ -16,6 +26,7 @@ class TemplatesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Application Templates')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'templatesFab',
         onPressed: () => _edit(context),
         icon: const Icon(Icons.add),
         label: const Text('New template'),
@@ -23,28 +34,45 @@ class TemplatesScreen extends StatelessWidget {
       body: ListenableBuilder(
         listenable: store,
         builder: (context, _) {
-          if (store.templates.isEmpty) {
-            return const Center(child: Text('No templates yet'));
-          }
           final defaultId = store.defaultTemplate?.id;
-          return RadioGroup<String>(
-            groupValue: defaultId,
-            onChanged: (id) => store.setDefaultTemplate(id!),
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 88),
-              children: [
-                for (final t in store.templates)
-                  ListTile(
-                    leading: Radio<String>(value: t.id),
-                    title: Text(t.name),
-                    subtitle: Text(t.subject, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    onTap: () => _edit(context, t),
-                    trailing: t.id == defaultId
-                        ? const Chip(label: Text('Default'), visualDensity: VisualDensity.compact)
-                        : null,
+          return ListView(
+            padding: const EdgeInsets.only(bottom: 88, top: 8),
+            children: [
+              if (!store.isEmailVerified)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: VerificationRequiredBanner(
+                    message:
+                        'Verify your Gmail in Settings before adding or editing templates. Data saving requires email verification.',
                   ),
-              ],
-            ),
+                ),
+              if (store.templates.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('No templates yet'),
+                  ),
+                )
+              else
+                RadioGroup<String>(
+                  groupValue: defaultId,
+                  onChanged: (id) => store.setDefaultTemplate(id!),
+                  child: Column(
+                    children: [
+                      for (final t in store.templates)
+                        ListTile(
+                          leading: Radio<String>(value: t.id),
+                          title: Text(t.name),
+                          subtitle: Text(t.subject, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          onTap: () => _edit(context, t),
+                          trailing: t.id == defaultId
+                              ? const Chip(label: Text('Default'), visualDensity: VisualDensity.compact)
+                              : null,
+                        ),
+                    ],
+                  ),
+                ),
+            ],
           );
         },
       ),
@@ -76,6 +104,15 @@ class _TemplateEditorState extends State<TemplateEditor> {
   }
 
   Future<void> _save() async {
+    if (!store.isEmailVerified) {
+      showVerificationRequiredDialog(
+        context,
+        title: 'Email Verification Required',
+        message:
+            'You cannot save templates until your email is verified in Settings.',
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     await store.saveTemplate(EmailTemplate(
       id: widget.template?.id ?? AppStore.newId(),
